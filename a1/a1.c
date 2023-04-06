@@ -73,16 +73,17 @@ void recIteration(const char* current_path,const char* path,const int recFlag,co
     closedir(dir);
 }
 
-int parseFile(const char* path,int afis){
+int parseFile(const char* path,int afis,int my_section,section *ret_section){
     int fd;
     char magic[5];
-    char header_size[3];
-    char version;
-    char no_of_sections;
+    int header_size;
+    int version;
+    int no_of_sections;
     char sect_name[8];
     int sect_type;
     int sect_offset;
     int sect_size;
+    int ok=0;
     section sections[2048];
     fd=open(path,O_RDONLY);
     if(fd==-1){
@@ -95,6 +96,7 @@ int parseFile(const char* path,int afis){
         close(fd);
         return 1;
     }
+    magic[4]='\0';
     //printf("%s\n",magic);
     if(strcmp(magic,"6a4t")!=0){
         if(afis==1)printf("ERROR\nwrong magic");
@@ -103,7 +105,7 @@ int parseFile(const char* path,int afis){
     }
 
     //read header_size
-    if(read(fd, header_size, 2) != 2) {
+    if(read(fd, &header_size, 2) != 2) {
         if(afis==1)printf("ERROR\nCould not read header_size");
         close(fd);
         return 1;
@@ -138,6 +140,7 @@ int parseFile(const char* path,int afis){
             close(fd);
             return 1;
         }
+        sect_name[7]='\0';
         if(read(fd, &sect_type, 4) != 4) {
             if(afis==1)printf("ERROR\nCould not read sect_type");
             close(fd);
@@ -162,129 +165,309 @@ int parseFile(const char* path,int afis){
         sections[i].sect_type=sect_type;
         sections[i].sect_offset=sect_offset;
         sections[i].sect_size=sect_size;
+        if( afis!=3 && ret_section!=NULL && i+1==my_section){
+            strcpy(ret_section->sect_name,sect_name);
+            ret_section->sect_type=sect_type;
+            ret_section->sect_offset=sect_offset;
+            ret_section->sect_size=sect_size;
+        }else if(afis==3 && ret_section!=NULL && sect_type==my_section){
+            strcpy(ret_section->sect_name,sect_name);
+            ret_section->sect_type=sect_type;
+            ret_section->sect_offset=sect_offset;
+            ret_section->sect_size=sect_size;
+            ok=1;
+        }
     }
+    if(afis!=3 && ret_section!=NULL && (my_section>no_of_sections || my_section<1)){free(ret_section);ret_section=NULL;}
     if(afis==1)printf("SUCCESS\nversion=%d\nnr_sections=%d\n",version,no_of_sections);
     for(int i=0;i<no_of_sections;i++){
         if(afis==1)printf("section%d: %s %d %d\n",i+1,sections[i].sect_name,sections[i].sect_type,sections[i].sect_size);
     }
     close(fd);
+    if(afis==3 && ok==1)return 0;
+    else if(afis==3 && ok==0)return 1;
     return 0;
 }
 
-int extract(const char* path, const int section_nr, const int line,int afis){
-    int fd;
-    char magic[5];
-    char header_size[3];
-    char version;
-    char no_of_sections;
-    char sect_name[8];
-    int sect_type;
-    int sect_offset;
-    int sect_size;
-    fd=open(path,O_RDONLY);
+// int extract(const char* path, const int section_nr, const int line,int afis){
+//     int fd;
+//     char magic[5];
+//     char header_size[3];
+//     char version;
+//     char no_of_sections;
+//     char sect_name[8];
+//     int sect_type;
+//     int sect_offset;
+//     int sect_size;
+//     fd=open(path,O_RDONLY);
+//     if(fd==-1){
+//         if(afis==1)printf("ERROR\ninvalid file");
+//         return 1;
+//     }
+//     //read magic
+//     if(read(fd, magic, 4) != 4) {
+//         if(afis==1)printf("ERROR\nCould not read magic");
+//         close(fd);
+//         return 1;
+//     }
+//     //printf("%s\n",magic);
+//     if(strcmp(magic,"6a4t")!=0){
+//         if(afis==1)printf("ERROR\nwrong magic");
+//         close(fd);
+//         return 1;
+//     }
+
+//     //read header_size
+//     if(read(fd, header_size, 2) != 2) {
+//         if(afis==1)printf("ERROR\nCould not read header_size");
+//         close(fd);
+//         return 1;
+//     }
+
+//     //version
+//     if(read(fd, &version, 1) != 1) {
+//         if(afis==1)printf("ERROR\nCould not read version");
+//         close(fd);
+//         return 1;
+//     }
+//     if(version<52 || version>86){
+//         if(afis==1)printf("ERROR\ninvalid file");
+//         close(fd);
+//         return 1;
+//     }
+
+//     //no_of_sections
+//     if(read(fd, &no_of_sections, 1) != 1) {
+//         if(afis==1)printf("ERROR\nCould not read no_of_sections");
+//         close(fd);
+//         return 1;
+//     }
+//     if(no_of_sections<6 || no_of_sections>14){
+//         if(afis==1)printf("ERROR\nwrong sect_nr");
+//         close(fd);
+//         return 1;
+//     }
+//     for(int i=0;i<no_of_sections;i++){
+//         if(read(fd, sect_name, 7) != 7) {
+//             if(afis==1)printf("ERROR\nCould not read sect_name");
+//             close(fd);
+//             return 1;
+//         }
+//         if(read(fd, &sect_type, 4) != 4) {
+//             if(afis==1)printf("ERROR\nCould not read sect_type");
+//             close(fd);
+//             return 1;
+//         }
+//         if(sect_type!=13 && sect_type!=52 && sect_type!=51 && sect_type!=11 && sect_type!=91 && sect_type!=29){
+//             if(afis==1)printf("ERROR\nwrong sect_types");
+//             close(fd);
+//             return 1;
+//         }
+//         if(read(fd, &sect_offset, 4) != 4) {
+//             if(afis==1)printf("ERROR\nCould not read sect_offset");
+//             close(fd);
+//             return 1;
+//         }
+//         if(read(fd, &sect_size, 4) != 4) {
+//             if(afis==1)printf("ERROR\nCould not read sect_size");
+//             close(fd);
+//             return 1;
+//         }
+//         if(i+1==section_nr){
+//             break;
+//         }
+//     }
+//     printf("%d+%d",atoi(header_size),sect_offset);
+//     lseek(fd,sect_offset,SEEK_SET);
+//     int line_nr=1;
+//     char c;
+//     off_t j=-2;
+//     printf("SUCCESS\n");
+//     while(line_nr<=line){
+//         if(read(fd,&c,1)!=1){
+//             printf("ERROR\ninvalid file");
+//             close(fd);
+//             return 1;
+//         }
+//         if(c=='\n')line_nr++;
+//     }
+//     do{
+//         lseek(fd,j,SEEK_CUR);
+//         if(read(fd,&c,1)!=1){
+//             printf("ERROR\ninvalid file");
+//             close(fd);
+//             return 1;
+//         }
+//         printf("%c",c);
+//         j--;
+//     }while(c!='\n');
+//     close(fd);
+//     return 0;
+// }
+
+int extract(const char* path,const int section_nr,const int line){
+    section* x=(section*)malloc(sizeof(section));
+    int rez=parseFile(path,0,section_nr,x);
+    int my_line=1;
+    if(rez!=0){
+        printf("ERROR\ninvalid section");
+        return 1;
+    }
+    int fd=open(path,O_RDONLY);
     if(fd==-1){
-        if(afis==1)printf("ERROR\ninvalid file");
+        printf("ERROR\ninvalid file");
         return 1;
     }
-    //read magic
-    if(read(fd, magic, 4) != 4) {
-        if(afis==1)printf("ERROR\nCould not read magic");
-        close(fd);
-        return 1;
-    }
-    //printf("%s\n",magic);
-    if(strcmp(magic,"6a4t")!=0){
-        if(afis==1)printf("ERROR\nwrong magic");
-        close(fd);
-        return 1;
-    }
+    lseek(fd,x->sect_offset,SEEK_SET);
+    char c[5];
+    //char c;
+    off_t i;
+    //char ce;
+    //char lc;
+    off_t start=0,end=0;
+    //int cnt=0;
+    for(i=0;i<x->sect_size;i+=4){
+        int rez=read(fd,c,4);
+        c[4]='\0';
+        if(rez==4){
+            if(c[0]=='\n'){
+                start=end;
+                end=i;
+                if(my_line<line)my_line++;
+                else if(my_line==line)break;
+            }else if(c[1]=='\n'){
+                start=end;
+                end=i+1;
+                if(my_line<line)my_line++;
+                else if(my_line==line)break;
+            }else if(c[2]=='\n'){
+                start=end;
+                end=i+2;
+                if(my_line<line)my_line++;
+                else if(my_line==line)break;
+            }else if(c[3]=='\n'){
+                start=end;
+                end=i+3;
+                if(my_line<line)my_line++;
+                else if(my_line==line)break;
+            }
+        }else if(rez==3){
+            if(c[0]=='\n'){
+                start=end;
+                end=i;
+                if(my_line<line)my_line++;
+                else if(my_line==line)break;
+            }else if(c[1]=='\n'){
+                start=end;
+                end=i+1;
+                if(my_line<line)my_line++;
+                else if(my_line==line)break;
+            }else if(c[2]=='\n'){
+                start=end;
+                end=i+2;
+                if(my_line<line)my_line++;
+                else if(my_line==line)break;
+            }
+        }else if(rez==2){
+            if(c[0]=='\n'){
+                start=end;
+                end=i;
+                if(my_line<line)my_line++;
+                else if(my_line==line)break;
+            }else if(c[1]=='\n'){
+                start=end;
+                end=i+1;
+                if(my_line<line)my_line++;
+                else if(my_line==line)break;
+            }
+        }else if(rez==1){
+            if(c[0]=='\n'){
+                start=end;
+                end=i;
+                if(my_line<line)my_line++;
+                else if(my_line==line)break;
+            }
+        }else{
+            printf("ERROR\ninvalid line");
+            close(fd);
+            return 1;
+        }
 
-    //read header_size
-    if(read(fd, header_size, 2) != 2) {
-        if(afis==1)printf("ERROR\nCould not read header_size");
-        close(fd);
-        return 1;
-    }
 
-    //version
-    if(read(fd, &version, 1) != 1) {
-        if(afis==1)printf("ERROR\nCould not read version");
+        // read(fd,&c,1);
+        // //printf("%c",c);
+        // if(c=='\n'){
+        //     cnt++;
+        //     start=end;
+        //     end=i;
+        //     //if(my_line<line)my_line++;
+        //     //else if(my_line==line)break;
+        //     printf("%c->%c\n",ce,lc);
+        // }
+        // if(lc=='\n' || i==0){
+        //     ce=c;
+        // }
+        // lc=c;
+    }
+    if(my_line<line){
+        printf("ERROR\ninvalid line");
         close(fd);
         return 1;
     }
-    if(version<52 || version>86){
-        if(afis==1)printf("ERROR\ninvalid file");
+    char* s=(char *)malloc(sizeof(char)*(end-start+1));
+    lseek(fd,x->sect_offset+start,SEEK_SET);
+    if(read(fd,s,end-start)!=end-start){
+        printf("ERROR\ninvalid file");
         close(fd);
         return 1;
     }
-
-    //no_of_sections
-    if(read(fd, &no_of_sections, 1) != 1) {
-        if(afis==1)printf("ERROR\nCould not read no_of_sections");
-        close(fd);
-        return 1;
+    s[end-start]='\0';
+    for(off_t i=end-start-1;i>=(end-start+1)/2;i--){
+        char c=s[i];
+        s[i]=s[end-start-1-i];
+        s[end-start-1-i]=c;
     }
-    if(no_of_sections<6 || no_of_sections>14){
-        if(afis==1)printf("ERROR\nwrong sect_nr");
-        close(fd);
-        return 1;
-    }
-    for(int i=0;i<no_of_sections;i++){
-        if(read(fd, sect_name, 7) != 7) {
-            if(afis==1)printf("ERROR\nCould not read sect_name");
-            close(fd);
-            return 1;
-        }
-        if(read(fd, &sect_type, 4) != 4) {
-            if(afis==1)printf("ERROR\nCould not read sect_type");
-            close(fd);
-            return 1;
-        }
-        if(sect_type!=13 && sect_type!=52 && sect_type!=51 && sect_type!=11 && sect_type!=91 && sect_type!=29){
-            if(afis==1)printf("ERROR\nwrong sect_types");
-            close(fd);
-            return 1;
-        }
-        if(read(fd, &sect_offset, 4) != 4) {
-            if(afis==1)printf("ERROR\nCould not read sect_offset");
-            close(fd);
-            return 1;
-        }
-        if(read(fd, &sect_size, 4) != 4) {
-            if(afis==1)printf("ERROR\nCould not read sect_size");
-            close(fd);
-            return 1;
-        }
-        if(i+1==section_nr){
-            break;
-        }
-    }
-    printf("%d+%d",atoi(header_size),sect_offset);
-    lseek(fd,atoi(header_size)+sect_offset,SEEK_SET);
-    int line_nr=1;
-    char c;
-    off_t j=-2;
-    printf("SUCCESS\n");
-    while(line_nr<=line){
-        if(read(fd,&c,1)!=1){
-            printf("ERROR\ninvalid file");
-            close(fd);
-            return 1;
-        }
-        if(c=='\n')line_nr++;
-    }
-    do{
-        lseek(fd,j,SEEK_CUR);
-        if(read(fd,&c,1)!=1){
-            printf("ERROR\ninvalid file");
-            close(fd);
-            return 1;
-        }
-        printf("%c",c);
-        j--;
-    }while(c!='\n');
-    close(fd);
+    printf("SUCCESS\n%s",s);
+    free(s);
+    if(x!=NULL)free(x);
     return 0;
+}
+
+void findAll(const char* current_path,const char* path){
+    DIR *dir=NULL;
+    struct dirent *entry=NULL;
+    char fullPath[2048];
+    struct stat statbuf;
+    dir=opendir(current_path);
+    if(dir==NULL){
+        printf("ERROR\ninvalid directory path\n");
+        return;
+    }
+    if(strcmp(current_path,path)==0)
+        printf("SUCCESS\n");
+    while((entry=readdir(dir))!=NULL){
+        if(strcmp(entry->d_name,"..")!=0 && strcmp(entry->d_name,".")!=0){
+            snprintf(fullPath,2048,"%s/%s",current_path,entry->d_name);
+            //printf("%s\n",fullPath);
+            if(lstat(fullPath,&statbuf)==0){
+                
+
+                if(S_ISDIR(statbuf.st_mode)){
+                    findAll(fullPath,path);
+                }else{
+                    section* x=(section*)malloc(sizeof(section));
+                    int rez=parseFile(fullPath,3,11,x);
+                    if(rez==0){
+                        printf("%s\n",fullPath);
+                        
+                    }
+                    free(x);
+                    x=NULL;
+                }
+            }
+        }
+    }
+    closedir(dir);
 }
 
 
@@ -333,7 +516,7 @@ int main(int argc, char **argv){
                 printf("ERROR\ninvalid directory path\n");
                 return 1;
             }
-            parseFile(path,1);
+            parseFile(path,1,-1,NULL);
         }else if(strcmp(argv[1],"extract")==0){
             char path[2048];
             int section_nr;
@@ -367,7 +550,23 @@ int main(int argc, char **argv){
                     }
                 }
             }
-            extract(path,section_nr,line,0);
+            extract(path,section_nr,line);
+        }else if(strcmp(argv[1],"findall")==0){
+            char* p;
+            char path[2048];
+            p=strtok(argv[2],"=");
+            if(strcmp(p,"path")==0){
+                p=strtok(NULL,"=");
+                if(p!=NULL)strcpy(path,p);
+                else{
+                    printf("ERROR\ninvalid directory path\n");
+                    return 1;
+                } 
+            }else{
+                printf("ERROR\ninvalid directory path");
+                return 1;
+            }
+            findAll(path,path);
         }
 
     }

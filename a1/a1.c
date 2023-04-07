@@ -76,7 +76,7 @@ void recIteration(const char* current_path,const char* path,const int recFlag,co
 int parseFile(const char* path,int afis,int my_section,section *ret_section){
     int fd;
     char magic[5];
-    int header_size;
+    //int header_size;
     int version;
     int no_of_sections;
     char sect_name[8];
@@ -84,7 +84,8 @@ int parseFile(const char* path,int afis,int my_section,section *ret_section){
     int sect_offset;
     int sect_size;
     int ok=0;
-    section sections[2048];
+    char buf[8];
+    section *sections=NULL;
     fd=open(path,O_RDONLY);
     if(fd==-1){
         if(afis==1)printf("ERROR\ninvalid path");
@@ -103,20 +104,21 @@ int parseFile(const char* path,int afis,int my_section,section *ret_section){
         close(fd);
         return 1;
     }
-
+    
     //read header_size
-    if(read(fd, &header_size, 2) != 2) {
+    if(read(fd, buf, 2) != 2) {
         if(afis==1)printf("ERROR\nCould not read header_size");
         close(fd);
         return 1;
     }
-
+    //header_size=(buffer[0]<<8)|buf[1];
     //version
-    if(read(fd, &version, 1) != 1) {
+    if(read(fd, buf, 1) != 1) {
         if(afis==1)printf("ERROR\nCould not read version");
         close(fd);
         return 1;
     }
+    version=(int)buf[0];
     if(version<52 || version>86){
         if(afis==1)printf("ERROR\nwrong version");
         close(fd);
@@ -124,40 +126,47 @@ int parseFile(const char* path,int afis,int my_section,section *ret_section){
     }
 
     //no_of_sections
-    if(read(fd, &no_of_sections, 1) != 1) {
+    if(read(fd, buf, 1) != 1) {
         if(afis==1)printf("ERROR\nCould not read no_of_sections");
         close(fd);
         return 1;
     }
+    no_of_sections=(int)buf[0];
     if(no_of_sections<6 || no_of_sections>14){
         if(afis==1)printf("ERROR\nwrong sect_nr");
         close(fd);
         return 1;
     }
+    sections=(section*)malloc(sizeof(section)* no_of_sections);
     for(int i=0;i<no_of_sections;i++){
         if(read(fd, sect_name, 7) != 7) {
             if(afis==1)printf("ERROR\nCould not read sect_name");
+            free(sections);
             close(fd);
             return 1;
         }
         sect_name[7]='\0';
         if(read(fd, &sect_type, 4) != 4) {
             if(afis==1)printf("ERROR\nCould not read sect_type");
+            free(sections);
             close(fd);
             return 1;
         }
         if(sect_type!=13 && sect_type!=52 && sect_type!=51 && sect_type!=11 && sect_type!=91 && sect_type!=29){
             if(afis==1)printf("ERROR\nwrong sect_types");
+            free(sections);
             close(fd);
             return 1;
         }
         if(read(fd, &sect_offset, 4) != 4) {
             if(afis==1)printf("ERROR\nCould not read sect_offset");
+            free(sections);
             close(fd);
             return 1;
         }
         if(read(fd, &sect_size, 4) != 4) {
             if(afis==1)printf("ERROR\nCould not read sect_size");
+            free(sections);
             close(fd);
             return 1;
         }
@@ -183,6 +192,7 @@ int parseFile(const char* path,int afis,int my_section,section *ret_section){
     for(int i=0;i<no_of_sections;i++){
         if(afis==1)printf("section%d: %s %d %d\n",i+1,sections[i].sect_name,sections[i].sect_type,sections[i].sect_size);
     }
+    free(sections);
     close(fd);
     if(afis==3 && ok==1)return 0;
     else if(afis==3 && ok==0)return 1;

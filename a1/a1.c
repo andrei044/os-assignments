@@ -329,98 +329,122 @@ int extract(const char* path,const int section_nr,const int line){
         return 1;
     }
     lseek(fd,x->sect_offset,SEEK_SET);
-    char c[5];
+    //char c[5];
     //char c;
     off_t i;
     //char ce;
     //char lc;
     off_t start=0,end=0;
     //int cnt=0;
-    for(i=0;i<x->sect_size;i+=4){
-        int rez=read(fd,c,4);
-        c[4]='\0';
-        if(rez==4){
-            if(c[0]=='\n'){
-                start=end;
-                end=i;
-                if(my_line<line)my_line++;
-                else if(my_line==line)break;
-            }else if(c[1]=='\n'){
-                start=end;
-                end=i+1;
-                if(my_line<line)my_line++;
-                else if(my_line==line)break;
-            }else if(c[2]=='\n'){
-                start=end;
-                end=i+2;
-                if(my_line<line)my_line++;
-                else if(my_line==line)break;
-            }else if(c[3]=='\n'){
-                start=end;
-                end=i+3;
-                if(my_line<line)my_line++;
-                else if(my_line==line)break;
-            }
-        }else if(rez==3){
-            if(c[0]=='\n'){
-                start=end;
-                end=i;
-                if(my_line<line)my_line++;
-                else if(my_line==line)break;
-            }else if(c[1]=='\n'){
-                start=end;
-                end=i+1;
-                if(my_line<line)my_line++;
-                else if(my_line==line)break;
-            }else if(c[2]=='\n'){
-                start=end;
-                end=i+2;
-                if(my_line<line)my_line++;
-                else if(my_line==line)break;
-            }
-        }else if(rez==2){
-            if(c[0]=='\n'){
-                start=end;
-                end=i;
-                if(my_line<line)my_line++;
-                else if(my_line==line)break;
-            }else if(c[1]=='\n'){
-                start=end;
-                end=i+1;
-                if(my_line<line)my_line++;
-                else if(my_line==line)break;
-            }
-        }else if(rez==1){
-            if(c[0]=='\n'){
-                start=end;
-                end=i;
-                if(my_line<line)my_line++;
-                else if(my_line==line)break;
-            }
-        }else{
-            printf("ERROR\ninvalid line");
-            close(fd);
-            return 1;
-        }
-
-
-        // read(fd,&c,1);
-        // //printf("%c",c);
-        // if(c=='\n'){
-        //     cnt++;
-        //     start=end;
-        //     end=i;
-        //     //if(my_line<line)my_line++;
-        //     //else if(my_line==line)break;
-        //     printf("%c->%c\n",ce,lc);
-        // }
-        // if(lc=='\n' || i==0){
-        //     ce=c;
-        // }
-        // lc=c;
+    rez=0;
+    char *buf=(char*)malloc(sizeof(char)*x->sect_size);
+    rez=read(fd,buf,x->sect_size);
+    if(rez==-1){
+        printf("ERROR\ninvalid file");
+        free(buf);
+        close(fd);
+        return 1;
     }
+    for(i=0;i<x->sect_size;i++){
+        if(buf[i]=='\n'){
+            start=end;
+            end=i;
+            //printf("l%d: %ld->%ld\n",my_line,start,end);
+            if(my_line<line)
+                my_line++;
+            else break;
+        }
+        if(i==x->sect_size-1){
+            start=end;
+            end=i+1;
+        }
+    }
+    // for(i=0;i<x->sect_size;i+=rez){
+    //     rez=read(fd,c,4);
+    //     c[4]='\0';
+    //     if(rez==4){
+    //         if(c[0]=='\n'){
+    //             start=end;
+    //             end=i;
+    //             if(my_line<line)my_line++;
+    //             else if(my_line==line)break;
+    //         }else if(c[1]=='\n'){
+    //             start=end;
+    //             end=i+1;
+    //             if(my_line<line)my_line++;
+    //             else if(my_line==line)break;
+    //         }else if(c[2]=='\n'){
+    //             start=end;
+    //             end=i+2;
+    //             if(my_line<line)my_line++;
+    //             else if(my_line==line)break;
+    //         }else if(c[3]=='\n'){
+    //             start=end;
+    //             end=i+3;
+    //             if(my_line<line)my_line++;
+    //             else if(my_line==line)break;
+    //         }
+    //     }else if(rez==3){
+    //         if(c[0]=='\n'){
+    //             start=end;
+    //             end=i;
+    //             if(my_line<line)my_line++;
+    //             else if(my_line==line)break;
+    //         }else if(c[1]=='\n'){
+    //             start=end;
+    //             end=i+1;
+    //             if(my_line<line)my_line++;
+    //             else if(my_line==line)break;
+    //         }else if(c[2]=='\n'){
+    //             start=end;
+    //             end=i+2;
+    //             if(my_line<line)my_line++;
+    //             else if(my_line==line)break;
+    //         }
+    //     }else if(rez==2){
+    //         if(c[0]=='\n'){
+    //             start=end;
+    //             end=i;
+    //             if(my_line<line)my_line++;
+    //             else if(my_line==line)break;
+    //         }else if(c[1]=='\n'){
+    //             start=end;
+    //             end=i+1;
+    //             if(my_line<line)my_line++;
+    //             else if(my_line==line)break;
+    //         }
+    //     }else if(rez==1){
+    //         if(c[0]=='\n'){
+    //             start=end;
+    //             end=i;
+    //             if(my_line<line)my_line++;
+    //             else if(my_line==line)break;
+    //         }
+    //     }else{
+    //         printf("ERROR\ninvalid line");
+    //         close(fd);
+    //         return 1;
+    //     }
+
+
+    //     // read(fd,&c,1);
+    //     // //printf("%c",c);
+    //     // if(c=='\n'){
+    //     //     cnt++;
+    //     //     start=end;
+    //     //     end=i;
+    //     //     //if(my_line<line)my_line++;
+    //     //     //else if(my_line==line)break;
+    //     //     printf("%c->%c\n",ce,lc);
+    //     // }
+    //     // if(lc=='\n' || i==0){
+    //     //     ce=c;
+    //     // }
+    //     // lc=c;
+    // }
     if(my_line<line){
         printf("ERROR\ninvalid line");
+        free(buf);
         close(fd);
         return 1;
     }
@@ -429,6 +453,7 @@ int extract(const char* path,const int section_nr,const int line){
     if(read(fd,s,end-start)!=end-start){
         printf("ERROR\ninvalid file");
         close(fd);
+        free(buf);
         return 1;
     }
     s[end-start]='\0';
@@ -439,6 +464,7 @@ int extract(const char* path,const int section_nr,const int line){
     }
     printf("SUCCESS\n%s",s);
     free(s);
+    free(buf);
     if(x!=NULL)free(x);
     return 0;
 }
